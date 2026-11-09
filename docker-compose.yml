@@ -1,0 +1,34 @@
+# Start:  docker compose up --build   ->   http://localhost:8000
+# Einstellungen stehen in .env (Vorlage: .env.example). Ohne .env läuft der Agent mit dem Mock-Modell.
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: agent
+      POSTGRES_USER: agent
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-agent}
+    volumes:
+      - dbdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U agent -d agent"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  app:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://agent:${POSTGRES_PASSWORD:-agent}@db:5432/agent
+      LLM_PROVIDER: ${LLM_PROVIDER:-mock}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      LLM_MODEL: ${LLM_MODEL:-gemini-2.5-flash}
+      LLM_MIN_INTERVAL: ${LLM_MIN_INTERVAL:-0}
+      REVIEWER_TOKEN: ${REVIEWER_TOKEN:-demo-reviewer}
+    ports:
+      - "8000:8000"
+
+volumes:
+  dbdata:
